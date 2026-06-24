@@ -1,11 +1,9 @@
-# Put this file at:  .github/workflows/scout.yml
-# It runs the scout on a schedule in the cloud (free), with no machine of yours on.
 name: gold-scout
 
 on:
   schedule:
-    - cron: "*/30 13-23 * * *"   # every 30 min, ~US daytime (cron is UTC). Tweak freely.
-  workflow_dispatch:              # also lets you press "Run" manually anytime
+    - cron: "*/30 13-23 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,10 +34,8 @@ jobs:
         env:
           EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
-          # instant phone alerts (free): set this to your private ntfy topic
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           ALERT_MIN_SCORE: "70"
-          # optional email-to-self: add these as repo secrets to turn it on
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -63,5 +59,3 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
-
-        
