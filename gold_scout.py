@@ -34,11 +34,21 @@ CONFIG = {
     "tax_pct":        0.0,    # sales tax you pay buying on eBay
     "max_price":      2000,
     "queries": [
-        "14k gold scrap", "10k gold scrap lot", "18k gold chain grams",
-        "14k gold chain grams", "solid gold scrap lot", "10k gold ring grams",
-        "22k gold scrap grams",
+        # every kind of gold item, per karat. "grams" biases toward listings
+        # that state a weight, which we need to price them.
+        "10k gold scrap grams", "10k gold chain grams", "10k gold ring grams",
+        "10k gold pendant grams", "10k gold bracelet grams", "10k gold necklace grams",
+        "10k gold earrings grams",
+        "14k gold scrap grams", "14k gold chain grams", "14k gold ring grams",
+        "14k gold pendant grams", "14k gold bracelet grams", "14k gold necklace grams",
+        "14k gold earrings grams",
+        "18k gold scrap grams", "18k gold chain grams", "18k gold ring grams",
+        "18k gold pendant grams", "18k gold bracelet grams", "18k gold necklace grams",
+        "18k gold earrings grams",
+        "22k gold scrap grams", "22k gold chain grams", "22k gold bracelet grams",
+        "24k gold scrap grams", "solid gold scrap lot grams",
     ],
-    "results_per_query": 100,
+    "results_per_query": 75,
     "json_out":  "results.json",
     "deals_csv": "gold_candidates.csv",
     "traps_csv": "gold_traps.csv",
@@ -76,6 +86,11 @@ HAS_STONE = re.compile(
     r"\b(diamond|gemstone|gem|stone|stones|cz|cubic\s?zirconia|sapphire|ruby|"
     r"emerald|pearl|opal|topaz|amethyst|garnet|turquoise|jade|onyx|moissanite|"
     r"rhinestone|crystal|birthstone|set\s?with)\b", re.I)
+# Contains a non-gold metal. Mixed pieces (gold + silver/platinum/steel) wreck
+# the per-gram math because part of the weight is not gold.
+NON_GOLD = re.compile(
+    r"\b(silver|sterling|925|platinum|palladium|titanium|stainless|steel|"
+    r"brass|copper|pewter|tungsten|bronze|nickel)\b", re.I)
 KARAT_RE = re.compile(r"\b(10|14|18|22|24)\s?k(?:t|arat)?\b", re.I)
 GRAM_RE  = re.compile(r"(\d+(?:\.\d+)?)\s?(?:g\b|gr\b|gram|grams)", re.I)
 
@@ -88,6 +103,8 @@ def live_spot_per_oz():
 
 def is_solid_no_stones(title):
     if NOT_SOLID.search(title):
+        return False
+    if NON_GOLD.search(title):          # silver, platinum, steel, etc. -> mixed metal
         return False
     cleaned = re.sub(r"diamond[\s-]?cut", "", title, flags=re.I)  # finish, not a stone
     # drop negations so "no stones" / "without gems" are not read as having them
