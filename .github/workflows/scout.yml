@@ -23,15 +23,18 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install requests
-      - name: Restore alert memory
+      - name: Restore memory (alerts + history)
         uses: actions/cache@v4
         with:
-          path: seen_ids.json
-          key: seen-${{ github.run_id }}
+          path: |
+            seen_ids.json
+            history.json
+          key: scout-state-${{ github.run_id }}
           restore-keys: |
-            seen-
-      - name: Fetch and score listings
+            scout-state-
+      - name: Full sweep
         env:
+          SCOUT_MODE: full
           EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
           EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
@@ -45,7 +48,10 @@ jobs:
         run: |
           mkdir -p site
           cp index.html site/
+          cp robots.txt site/
           cp results.json site/
+          cp settings.json site/ 2>/dev/null || echo "{}" > site/settings.json
+          cp history.json site/ 2>/dev/null || echo "[]" > site/history.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
