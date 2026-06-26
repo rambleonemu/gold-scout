@@ -1,0 +1,73 @@
+name: gold-scout
+
+on:
+  schedule:
+    - cron: "23 * * * *"   # top-of-hour is GitHub's most contended slot; :23 fires more reliably
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Restore memory (alerts + history)
+        uses: actions/cache@v4
+        with:
+          path: |
+            seen_ids.json
+            history.json
+          key: scout-state-${{ github.run_id }}
+          restore-keys: |
+            scout-state-
+      - name: Full sweep
+        env:
+          SCOUT_MODE: full
+          EBAY_CLIENT_ID: ${{ secrets.EBAY_CLIENT_ID }}
+          EBAY_CLIENT_SECRET: ${{ secrets.EBAY_CLIENT_SECRET }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          ALERT_MIN_SCORE: "70"
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: python3 gold_scout.py
+      - name: Heartbeat on failure
+        if: failure()
+        run: |
+          curl -s -H "Title: Gold Scout · RUN FAILED" -H "Priority: urgent" -H "Tags: rotating_light" \
+            -d "A scheduled sweep failed (crash, token, or quota). Check the Actions log: https://github.com/${{ github.repository }}/actions" \
+            "https://ntfy.sh/${{ secrets.NTFY_TOPIC }}" || true
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp index.html site/
+          cp robots.txt site/
+          cp results.json site/
+          cp settings.json site/ 2>/dev/null || echo "{}" > site/settings.json
+          cp history.json site/ 2>/dev/null || echo "[]" > site/history.json
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
