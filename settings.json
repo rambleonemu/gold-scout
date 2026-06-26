@@ -1,8 +1,8 @@
 {
   "payout_pct": 1,
   "trap_under_pct": 0.5,
-  "max_price": 2000,
-  "min_feedback_pct": 96,
+  "max_price": 4000,
+  "min_feedback_pct": 90,
   "alert_min_score": 70,
   "max_detail_calls": 35,
   "extra_exclude": [],
