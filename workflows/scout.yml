@@ -2,7 +2,7 @@ name: gold-scout
 
 on:
   schedule:
-    - cron: "23 * * * *"   # top-of-hour is GitHub's most contended slot; :23 fires more reliably
+    - cron: "7,37 * * * *"   # top-of-hour is GitHub's most contended slot; :23 fires more reliably
   workflow_dispatch:
 
 permissions:
