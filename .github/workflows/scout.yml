@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false   # queue overlapping runs; never kill a sweep mid-flight
 
 jobs:
   build:
@@ -50,6 +50,19 @@ jobs:
           curl -s -H "Title: Gold Scout · RUN FAILED" -H "Priority: urgent" -H "Tags: rotating_light" \
             -d "A scheduled sweep failed (crash, token, or quota). Check the Actions log: https://github.com/${{ github.repository }}/actions" \
             "https://ntfy.sh/${{ secrets.NTFY_TOPIC }}" || true
+      - name: Heartbeat OK (dead-man's-switch)
+        if: success()
+        env:
+          HC_PING_URL: ${{ secrets.HC_PING_URL }}
+        run: |
+          # Pings healthchecks.io on every SUCCESSFUL sweep. If pings stop arriving
+          # (i.e. GitHub silently drops the schedule), healthchecks.io alerts you —
+          # which the failure-only ntfy heartbeat above can never do.
+          if [ -n "$HC_PING_URL" ]; then
+            curl -fsS -m 10 --retry 3 "$HC_PING_URL" || true
+          else
+            echo "HC_PING_URL secret not set — skipping heartbeat (see setup notes)."
+          fi
       - name: Assemble site
         run: |
           mkdir -p site
