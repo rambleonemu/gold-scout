@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
  
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
  
@@ -63,6 +63,29 @@ jobs:
           else
             echo "HC_PING_URL secret not set — skipping heartbeat (see setup notes)."
           fi
+      - name: Validate sweep output
+        run: |
+          # Fail loudly if the sweep produced no results.json or an empty/stale one
+          if [ ! -f results.json ]; then
+            echo "ERROR: results.json missing — sweep failed to write output"; exit 1
+          fi
+          DEALS=$(python3 -c "import json; d=json.load(open('results.json')); print(len(d.get('deals',[])+d.get('traps',[][:1])))" 2>/dev/null || echo "0")
+          UPDATED=$(python3 -c "import json; print(json.load(open('results.json')).get('updated',''))" 2>/dev/null || echo "")
+          echo "deals+traps: $DEALS  updated: $UPDATED"
+          # Warn but don't fail on 0 deals — market can be dry. Just log it.
+          if [ "$DEALS" = "0" ]; then
+            echo "WARNING: sweep returned 0 deals and 0 traps — eBay quota or API issue likely"
+          fi
+      - name: Commit fresh data back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add results.json history.json seen_ids.json 2>/dev/null || true
+          git diff --cached --quiet && echo "nothing to commit" || \
+            git commit -m "scout: update results [skip ci]" && \
+            git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Assemble site
         run: |
           mkdir -p site
@@ -87,3 +110,4 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+ 
